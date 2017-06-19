@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>FireBall</title>
+<style>
+canvas{position:absolute;}
+body{background-color:black;}
+</style>
+<script>
+
+function GlobalObject(){
+//ScreenWidth
+this.x;
+//ScreenHeight
+this.y;
+//frameCount
+this.c;
+//Ball Radius
+this.r;
+//Holder of Balls
+this.bag=[];
+//Canvas object
+this.canvas;
+//Canvas context
+this.ctx;
+}
+
+var G= new GlobalObject();
+
+
+var myInterval;
+var myInt;
+var count=0;
+var BallRad=100;
+var bag=[];
+var score=0;
+
+function ball(ctx,x,y,r,c,a,l,xv,yv){
+	this.x=x;
+	this.y=y;
+	this.Xv=xv;
+	this.Yv=yv;
+	this.life=l;
+	this.rad=r;
+	this.colour=c;
+	this.alpha=a;
+	this.alive=true;
+}
+var count;
+var ver,hor;
+function refreshSize(){
+	let x = FindWidth();
+	let y = FindHeight();
+	if(x>y){hor=true;ver=false;BallRad=Math.floor(y/10);}
+	if(y>x){hor=false;ver=true;BallRad=Math.floor(x/10);}
+	setWidth("canvas",x);
+	setHeight("canvas",y);
+	makeBall(x/2,y/2);
+}
+
+function init(){
+	G.x = FindWidth();
+	G.y = FindHeight();
+	let x=G.x;
+	let y=G.y;
+	
+	if(x>y){hor=true;ver=false;BallRad=Math.floor(y/10);}
+	if(y>x){hor=false;ver=true;BallRad=Math.floor(x/10);}
+	
+	makeElement(document.body,"canvas","canvas");
+	makeAttribute(document.getElementById("canvas"),"width",x);
+	makeAttribute(document.getElementById("canvas"),"height",y);
+	setTop("canvas",0);
+	setLeft("canvas",0);
+	setBC("canvas","rgba(200,0,0,.2)");
+	let c = document.getElementById('canvas');
+	let ctx = c.getContext('2d');
+	AddClickMinder();	
+	makeBall(x/2,y/2);
+	count=0;
+	timeFrame();
+
+}
+var PC=0;
+function timeFrame(){
+	if(count>59){
+		clearInterval(myInterval);
+		count=0;
+		timeFrame();
+	}
+	else if(count==0){
+		myInterval = setInterval(function(){
+			count=count+1;
+			timeFrame(); 
+			if(!bag[0]){
+				return;
+			}
+			makeBall(bag[bag.length-1].x+bag[bag.length-1].Xv,bag[bag.length-1].y+bag[bag.length-1].Yv);
+		},Math.floor(1000/60))
+	}
+
+}
+
+var Xvel=0;
+var Yvel=0;
+var xHold,yHold;
+var lock=false;
+
+function AddClickMinder(){
+	// Add event listener for `click` events.
+	var canvas = document.getElementById('canvas');
+
+	canvas.addEventListener('mousedown', function(event) {
+	
+		//console.log(event);
+		if (!lock){
+			var x = event.pageX;
+			var y = event.pageY;
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseDownLogic(x,y,lock);
+		}
+	}, false);
+	
+	// Add event listener for `click` events.
+	canvas.addEventListener('mousemove', function(event) {
+
+		if (lock){
+			var x = event.pageX;
+			var y = event.pageY;
+				
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseMoveLogic(x,y,lock);
+		}
+	}, false);
+	
+	
+	// Add event listener for `click` events.
+	canvas.addEventListener('mouseup', function(event) {
+		if (lock){
+			var x = event.pageX;
+			var y = event.pageY;
+			PC=0;
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseUpLogic(x,y,lock);
+		}
+	}, false);
+
+	document.getElementById('canvas').addEventListener('mouseout', function(event) {
+		lock=false;
+		PC=0;
+	}, false);
+	
+	startup();
+
+}
+
+function mouseDownLogic(x,y,l){
+	if(l){
+		//console.log(bag);	
+		xHold=x;
+		yHold=y;
+		Xvel=0;
+		Yvel=0;
+		PC=1;
+		bag=[];
+		makeBall(x,y);	
+	}
+}
+
+function mouseMoveLogic(x,y,l){
+	if(l){
+		//console.log("dx:"+x+" dy:"+y);	
+		makeBall(x,y);
+		PC=PC+1;
+		if(PC>=30){
+			xHold=x;
+			yHold=y;
+			Xvel=0;
+			Yvel=0;
+			PC=1;
+		}
+	}
+	else{
+		Xvel=Math.floor((x-xHold)/15);
+		Yvel=Math.floor((y-yHold)/15);
+		PC=0;
+	}
+}
+
+
+function mouseUpLogic(x,y,l){
+	if(l){
+		bag=[];
+		console.log("dx:"+x+" dy:"+y);
+		Xvel=Math.floor((x-xHold)/15);
+		Yvel=Math.floor((y-yHold)/15);				
+		makeBall(x,y);
+		lock=false;
+		//console.log(bag.length);
+	}
+}
+
+function fullscreen(){
+	var el=document.getElementById('canvas');
+	if(el.webkitRequestFullScreen){
+		el.webkitRequestFullScreen();
+	}
+	else{
+		el.mozRequestFullScreen();
+	}
+}
+
+
+function startup() {
+  var el =document.body;
+  el.addEventListener("touchstart", handleStart, false);
+  el.addEventListener("touchend", handleEnd, false);
+  el.addEventListener("touchcancel", handleCancel, false);
+  el.addEventListener("touchleave", handleEnd, false);
+  el.addEventListener("touchmove", handleMove, false);
+}
+var fullScr=false;
+var ongoingTouches = new Array;
+function handleStart(evt) {
+
+	if (!lock){
+		var touches = evt.changedTouches;
+		if(touches.length>0){
+			evt.preventDefault();
+			var x = touches[0].pageX;
+			var y = touches[0].pageY;
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseDownLogic(x,y,lock);
+			if(lock){ongoingTouches.push(touches[0]);}
+			else{ongoingTouches=[];}
+		}
+	}	
+}
+function handleMove(evt) {
+	if (lock){
+		var touches = evt.changedTouches;
+		if(touches.length>0){
+			var x = ongoingTouches[0].pageX;
+			var y = ongoingTouches[0].pageY;
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseMoveLogic(x,y,lock);
+			if(lock){ongoingTouches.splice(0, 1, touches[0]);}		// swap in the new touch record
+			else{ongoingTouches=[];}
+		}
+	}
+}
+function handleEnd(evt) {
+	if (lock){
+		var touches = evt.changedTouches;
+		if(touches.length>0){
+			var x = touches[0].pageX;
+			var y = touches[0].pageY;
+			PC=0;
+			lock=clickValidate(x,y,bag[bag.length-1]);
+			mouseUpLogic(x,y,lock);
+			if(lock){ongoingTouches.splice(0, 1, touches[0]);}		// swap in the new touch record
+			else{ongoingTouches=[];}
+		}
+	}	
+}
+function handleCancel(evt) {
+	evt.preventDefault();
+	var touches = evt.changedTouches;
+	ongoingTouches=[];
+}
+function clickValidate(x,y,b){
+	if(!b){return false;}	
+	let dx=b.x-x;
+	let dy=b.y-y;
+	let dis=Math.sqrt(dx*dx+dy*dy);	
+	if (dis<BallRad){
+		return true;
+	}
+	return false;
+}
+
+function makeBall(x,y){
+	let c = document.getElementById('canvas');
+	let ctx = c.getContext('2d');
+	let w = FindWidth();
+	let h = FindHeight();
+	clearSpace(ctx,w,h);
+	let cr="rgb(255,"+getRandomIntInclusive(0,200)+",0)";
+//	let cr="rgb(255,255,255)";
+	var Rubber = new ball(ctx,x,y,BallRad,cr,1,10,Xvel,Yvel);
+	bounceIN(Rubber,0,0,w,h);
+//	console.log(Rubber);
+	bag.push(Rubber);
+    for(var i=0;i<bag.length;i++){
+		if(i!=bag.length-1){evolveBall(ctx,bag[i]);}
+		if(bag[i].rad<1){bag.splice(i,1);}
+	drawBall(ctx,bag[i]);}
+	drawScorePlayer1(ctx,w,h);
+	drawScorePlayer2(ctx,w,h);
+}
+function evolveBall(ctx,b){	
+	if (bag.length!=0){
+		let cx;	let cy;
+		b.life=b.life-.01;
+		b.Xv = getRandomIntInclusive(-2, 2);
+		b.Yv = getRandomIntInclusive(-2, 2);
+		b.x=b.x+b.Xv;
+		b.y=b.y+b.Yv;
+		drawBall(ctx,b);
+	}
+}
+function drawBall(ctx,b){
+
+	let fadeMark=(b.alpha*b.life)/10;
+	let radMark=Math.floor((b.rad*b.life)/10);
+	b.rad=radMark;
+	b.alpha=fadeMark;
+	ctx.globalAlpha=fadeMark;
+	ctx.beginPath();
+	ctx.arc(b.x,b.y,b.rad,0,Math.PI*2,true);
+	ctx.fillStyle=b.colour;
+	ctx.fill();
+
+}
+
+
+
+
+
+
+function drawScorePlayer2(ctx,x,y){
+ctx.globalAlpha=1;	
+TextFont(ctx);
+ctx.textAlign="right";
+ctx.strokeText(play2,((x/20)*17),((y/5)));
+ctx.fillText(play2,((x/20)*17),((y/5)));
+}
+
+function drawScorePlayer1(ctx,x,y){
+ctx.globalAlpha=1;	
+TextFont(ctx);
+ctx.textAlign="left";
+ctx.strokeText(play1,((x/20)*3),((y/5)*4));
+ctx.fillText(play1,((x/20)*3),((y/5)*4));
+}
+
+var play1=0;
+var play2=0;
+function bounceIN(b,x1,y1,x2,y2){
+	if ((b.x+b.Xv)<x1+BallRad){
+		b.x=x1+BallRad;b.Xv=(b.Xv*(-1));Xvel=Xvel*(-1);
+		if(hor&&!lock){play2=play2+1;Xvel=0;Yvel=0;}
+		}
+	if ((b.x+b.Xv)>=x2-BallRad){
+		b.x=x2-BallRad;b.Xv=(b.Xv*(-1));Xvel=Xvel*(-1);
+		if(hor&&!lock){play1=play1+1;Xvel=0;Yvel=0;}
+		}
+	if ((b.y+b.Yv)<y1+BallRad){
+		b.y=y1+BallRad;b.Yv=(b.Yv*(-1));Yvel=Yvel*(-1);
+		if(ver&&!lock){play1=play1+1;Xvel=0;Yvel=0;}
+		}
+	if ((b.y+b.Yv)>=y2-BallRad){
+		b.y=y2-BallRad;b.Yv=(b.Yv*(-1));Yvel=Yvel*(-1);
+		if(ver&&!lock){play2=play2+1;Xvel=0;Yvel=0;}
+		}
+}
+function TextFont(ctx){ctx.font='48px Helvetica, sans-serif';ctx.lineWidth=3;ctx.strokeStyle="rgb(255,255,55)";ctx.fillStyle="rgb(255,255,0)";}
+//create elements 
+function makeElement(LocName,EleName,Ident){var holder = document.createElement(EleName);holder.id = Ident;LocName.appendChild(holder);}
+function makeAttribute(LocName,AttName,AttVal){LocName.setAttribute(AttName,AttVal);}
+//set attributes
+function setHeight(Ident,h){document.getElementById(Ident).style.height=h+"px";}
+function setWidth(Ident,w){document.getElementById(Ident).style.width=w+"px";}
+function setZin(Ident,z){document.getElementById(Ident).style.zIndex=z;}
+function setTop(Ident,t){document.getElementById(Ident).style.top=t+"px";}
+function setLeft(Ident,lft){document.getElementById(Ident).style.left=lft+"px";}
+function setBC(Ident,bc){document.getElementById(Ident).style.backgroundColor=bc;}
+function FindWidth(){
+	let winW;
+	if (document.body && document.body.offsetWidth) {winW = document.body.offsetWidth;}
+	if (document.compatMode=='CSS1Compat' && document.documentElement && document.documentElement.offsetWidth ) {winW = document.documentElement.offsetWidth;}
+	if (window.innerWidth && window.innerHeight) {winW = window.innerWidth;}
+	return winW;
+}
+function FindHeight(){
+	let winH;
+	if (document.body && document.body.offsetHeight) {winH = document.body.offsetWidth;}
+	if (document.compatMode=='CSS1Compat' && document.documentElement && document.documentElement.offsetHeight) {winH = document.documentElement.offsetHeight;}
+	if (window.innerHeight) {winH = window.innerHeight;}
+	return winH;
+}
+function getRandomIntInclusive(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function clearSpace(ctx,x,y){
+	ctx.clearRect(0,0,x,y);
+}
+</script>
+</head>
+<body onload=init(); onresize=refreshSize();>
+
+
+</body>
+</html>
